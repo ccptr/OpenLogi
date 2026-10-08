@@ -181,6 +181,9 @@ use windows::normalize_collection_path;
 /// - `0xFF43 / 0x0202` — Bluetooth-*Low-Energy* directly-paired devices
 ///   (e.g. the Logitech Lift / Signature mice). Same HID++ protocol, just a
 ///   different vendor page on the BLE HID report descriptor.
+/// - `0xFF43 / 0x0302` — Lightspeed receivers that are HID++ 2.0 devices
+///   themselves (`046d:c54f`, PRO X3 SUPERSTRIKE). The short report sits in a
+///   sibling `0x0301` collection on the same interface, so it is not long-only.
 /// - `0xFF43 / 0x0602` — wired G-series gaming keyboards (e.g. the G513): a
 ///   distinct vendor collection on the same `0xFF43` page. Carries both report
 ///   widths, so it is not long-only.
@@ -195,9 +198,10 @@ use windows::normalize_collection_path;
 /// Filtering on these pairs gives us one HID node per physical HID++ device on
 /// every supported OS, without reading report descriptors (`async-hid 0.4`
 /// only exposes those on Linux).
-const HIDPP_LONG_COLLECTIONS: [(u16, u16, bool); 3] = [
+const HIDPP_LONG_COLLECTIONS: [(u16, u16, bool); 4] = [
     (0xff00, 0x0002, false),
     (0xff43, 0x0202, true),
+    (0xff43, 0x0302, false),
     (0xff43, 0x0602, false),
 ];
 
