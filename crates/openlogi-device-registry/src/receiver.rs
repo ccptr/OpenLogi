@@ -22,6 +22,10 @@ pub enum ReceiverProtocol {
     Bolt,
     /// HID++ 1.0 Unifying-compatible receiver registers and pairing flow.
     Unifying,
+    /// A receiver that is itself a HID++ 2.0 device: it answers the root
+    /// feature at the receiver index, rejects every HID++ 1.0 register, and
+    /// relays its paired device at index 1.
+    Hidpp20,
 }
 
 /// A known receiver's USB identity and the behavior OpenLogi assigns to it.
@@ -52,7 +56,7 @@ impl ReceiverDescriptor {
 ///
 /// Each entry is a protocol claim and must be backed by hardware verification
 /// or an established reference implementation. Marketing families and protocol
-/// families are recorded separately: Nano and Lightspeed currently use
+/// families are recorded separately: Nano and most Lightspeed receivers use
 /// [`ReceiverProtocol::Unifying`].
 pub const RECEIVERS: &[ReceiverDescriptor] = &[
     ReceiverDescriptor::logitech(0xc52b, ReceiverBrand::Unifying, ReceiverProtocol::Unifying),
@@ -89,6 +93,10 @@ pub const RECEIVERS: &[ReceiverDescriptor] = &[
         ReceiverBrand::Lightspeed,
         ReceiverProtocol::Unifying,
     ),
+    // Lightspeed receiver, verified with a PRO X3 SUPERSTRIKE (WPID 0x40be).
+    // Reports HID++ 4.2 at the receiver index and answers the pairing-count
+    // register with a HID++ 2.0 `InvalidFeatureIndex` error.
+    ReceiverDescriptor::logitech(0xc54f, ReceiverBrand::Lightspeed, ReceiverProtocol::Hidpp20),
 ];
 
 /// Finds the descriptor for an exact USB vendor/product identity.
@@ -124,6 +132,14 @@ mod tests {
 
         assert_eq!(receiver.brand, ReceiverBrand::Lightspeed);
         assert_eq!(receiver.protocol, ReceiverProtocol::Unifying);
+    }
+
+    #[test]
+    fn superstrike_receiver_is_lightspeed_over_hidpp20() {
+        let receiver = find_receiver(LOGITECH_VENDOR_ID, 0xc54f).expect("c54f receiver");
+
+        assert_eq!(receiver.brand, ReceiverBrand::Lightspeed);
+        assert_eq!(receiver.protocol, ReceiverProtocol::Hidpp20);
     }
 
     #[test]

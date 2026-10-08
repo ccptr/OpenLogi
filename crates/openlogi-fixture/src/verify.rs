@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 use openlogi_core::device::DeviceInventory;
-use openlogi_core::hid::{DIRECT_DEVICE_INDEX, DeviceRoute, speaks_unifying_protocol};
+use openlogi_core::hid::{DIRECT_DEVICE_INDEX, DeviceRoute, routes_as_unifying};
 use thiserror::Error;
 
 use super::manifest::case_relates_principal;
@@ -301,7 +301,7 @@ fn verify_profile<'a>(
     let mut receivers = BTreeMap::new();
     for inventory in &profile.inventories {
         let receiver = if let Some(identity) = inventory.receiver.unique_id.as_deref() {
-            let kind = if speaks_unifying_protocol(inventory.receiver.product_id) {
+            let kind = if routes_as_unifying(inventory.receiver.product_id) {
                 SyntheticIdentityKind::UnifyingReceiverRoute
             } else {
                 SyntheticIdentityKind::BoltReceiverUid

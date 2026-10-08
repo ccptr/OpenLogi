@@ -9,7 +9,7 @@ use openlogi_fixture::{
 
 pub(super) fn inventory(inventory: &mut DeviceInventory) -> Result<()> {
     if inventory.receiver.unique_id.is_some() {
-        let kind = if openlogi_core::hid::speaks_unifying_protocol(inventory.receiver.product_id) {
+        let kind = if openlogi_core::hid::routes_as_unifying(inventory.receiver.product_id) {
             SyntheticIdentityKind::UnifyingReceiverRoute
         } else {
             SyntheticIdentityKind::BoltReceiverUid

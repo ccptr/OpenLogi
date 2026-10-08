@@ -4,8 +4,8 @@
 //!
 //! - [`DeviceRoute::Bolt`] — a device paired to a Logi Bolt receiver, reached
 //!   through the receiver channel at a pairing slot.
-//! - [`DeviceRoute::Unifying`] — the same addressing through a Unifying
-//!   receiver, which speaks HID++ 1.0.
+//! - [`DeviceRoute::Unifying`] — the same addressing through any other
+//!   receiver: Unifying, Nano, or Lightspeed.
 //! - [`DeviceRoute::Direct`] — a device attached straight to the host over a
 //!   USB cable or Bluetooth, reached on its own channel at the HID++
 //!   self-index [`DIRECT_DEVICE_INDEX`].
@@ -81,14 +81,18 @@ pub enum DeviceRoute {
     },
 }
 
-/// Whether `product_id` is a receiver that speaks the Unifying HID++ 1.0
-/// register protocol — a Unifying receiver proper, or a protocol-compatible
-/// Nano or Lightspeed receiver. Such receivers are addressed with
-/// [`DeviceRoute::Unifying`].
+/// Whether `product_id` is a receiver whose devices are addressed with
+/// [`DeviceRoute::Unifying`]: a receiver UID plus a slot, on any registered
+/// receiver that is not Bolt. That covers the Unifying HID++ 1.0 register
+/// protocol (Unifying proper, Nano, most Lightspeed) and the Lightspeed
+/// receivers that are HID++ 2.0 devices themselves. The route names the
+/// addressing only; `open_route_channel` picks the protocol from the receiver.
 #[must_use]
-pub fn speaks_unifying_protocol(product_id: u16) -> bool {
-    find_receiver(LOGITECH_VENDOR_ID, product_id)
-        .is_some_and(|receiver| receiver.protocol == ReceiverProtocol::Unifying)
+pub fn routes_as_unifying(product_id: u16) -> bool {
+    find_receiver(LOGITECH_VENDOR_ID, product_id).is_some_and(|receiver| match receiver.protocol {
+        ReceiverProtocol::Unifying | ReceiverProtocol::Hidpp20 => true,
+        ReceiverProtocol::Bolt => false,
+    })
 }
 
 /// Whether `product_id` is a known Logitech receiver dongle of any family
@@ -167,10 +171,9 @@ impl DeviceRoute {
     /// Build the route that reaches a paired device from a receiver inventory.
     ///
     /// Picks [`DeviceRoute::Unifying`] or [`DeviceRoute::Bolt`] based on the
-    /// receiver's identity in [`RECEIVERS`] (Unifying proper plus
-    /// protocol-compatible Nano and Lightspeed receivers). Any receiver that
-    /// does not speak the Unifying protocol — including future Bolt variants
-    /// whose PID is not yet registered — defaults to [`DeviceRoute::Bolt`] so
+    /// receiver's identity in [`RECEIVERS`] (see [`routes_as_unifying`]). Any
+    /// other receiver — including future Bolt variants whose PID is not yet
+    /// registered — defaults to [`DeviceRoute::Bolt`] so
     /// writes keep working rather than silently dropping.
     /// [`DeviceRoute::Direct`] is used for directly-attached devices
     /// (slot == [`DIRECT_DEVICE_INDEX`] with no receiver UID). Returns `None`
@@ -178,15 +181,13 @@ impl DeviceRoute {
     #[must_use]
     pub fn for_slot(inv: &DeviceInventory, slot: u8) -> Option<Self> {
         match &inv.receiver.unique_id {
-            Some(uid) if speaks_unifying_protocol(inv.receiver.product_id) => {
-                Some(Self::Unifying {
-                    receiver_uid: uid.clone(),
-                    slot,
-                })
-            }
+            Some(uid) if routes_as_unifying(inv.receiver.product_id) => Some(Self::Unifying {
+                receiver_uid: uid.clone(),
+                slot,
+            }),
             Some(uid) => {
-                // Default to Bolt for any receiver that does not speak the
-                // Unifying protocol. This covers both known Bolt receivers and
+                // Default to Bolt for any receiver that is not routed as
+                // Unifying. This covers both known Bolt receivers and
                 // any future Bolt-compatible receiver with a new PID — returning
                 // None would silently drop writes for such receivers.
                 if find_receiver(LOGITECH_VENDOR_ID, inv.receiver.product_id)
@@ -266,7 +267,7 @@ mod tests {
                     route,
                     Some(DeviceRoute::Bolt { ref receiver_uid, slot: 2 }) if receiver_uid == "A1B2"
                 ),
-                ReceiverProtocol::Unifying => assert_matches!(
+                ReceiverProtocol::Unifying | ReceiverProtocol::Hidpp20 => assert_matches!(
                     route,
                     Some(DeviceRoute::Unifying { ref receiver_uid, slot: 2 }) if receiver_uid == "A1B2"
                 ),
@@ -284,6 +285,7 @@ mod tests {
         assert_eq!(receiver_display_name(0xc53f), "Lightspeed Receiver");
         assert_eq!(receiver_display_name(0xc547), "Lightspeed Receiver");
         assert_eq!(receiver_display_name(0xc54d), "Lightspeed Receiver");
+        assert_eq!(receiver_display_name(0xc54f), "Lightspeed Receiver");
         assert_eq!(receiver_display_name(0xc52b), "Unifying Receiver");
         assert_eq!(receiver_display_name(0xc532), "Unifying Receiver");
     }

@@ -16,10 +16,11 @@ use hidpp::{
 fn receiver_family_follows_the_shared_protocol_registry() {
     for receiver in crate::RECEIVERS {
         let expected = match receiver.protocol {
-            crate::ReceiverProtocol::Bolt => ReceiverFamily::Bolt,
-            crate::ReceiverProtocol::Unifying => ReceiverFamily::Unifying,
+            crate::ReceiverProtocol::Bolt => Some(ReceiverFamily::Bolt),
+            crate::ReceiverProtocol::Unifying => Some(ReceiverFamily::Unifying),
+            crate::ReceiverProtocol::Hidpp20 => None,
         };
-        assert_eq!(family_for(receiver.product_id), Some(expected));
+        assert_eq!(family_for(receiver.product_id), expected);
     }
     assert_eq!(family_for(0xc5ff), None);
 }

@@ -3,7 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use openlogi_core::device::DeviceModelInfo;
-use openlogi_core::hid::{DeviceRoute, speaks_unifying_protocol};
+use openlogi_core::hid::{DeviceRoute, routes_as_unifying};
 
 use super::{
     DeviceProfile, FIXTURE_SCHEMA_VERSION, FixtureCase, FixtureCaseRelationship,
@@ -79,7 +79,7 @@ fn build_profile_ledger(profile: &DeviceProfile) -> Result<Vec<IdentityLedgerEnt
             }
             device_number = device_number.saturating_add(1);
             let route = match &receiver {
-                Some(receiver) if speaks_unifying_protocol(inventory.receiver.product_id) => {
+                Some(receiver) if routes_as_unifying(inventory.receiver.product_id) => {
                     FixtureDeviceRoute::Unifying {
                         receiver: receiver.clone(),
                         slot: device.slot,
@@ -146,7 +146,7 @@ fn receiver_representation(
     product_id: u16,
     identity: &str,
 ) -> Result<IdentityRepresentation, FixtureError> {
-    if speaks_unifying_protocol(product_id) {
+    if routes_as_unifying(product_id) {
         let ordinal = classify_synthetic_profile_identity(
             SyntheticIdentityKind::UnifyingReceiverRoute,
             identity,

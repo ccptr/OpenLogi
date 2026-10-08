@@ -36,8 +36,7 @@ pub use backend::{
 pub use backlight::{BacklightMode, BacklightState, BacklightStatus};
 pub use channel::route::{
     DIRECT_DEVICE_INDEX, DeviceRoute, LOGITECH_VENDOR_ID, RECEIVERS, ReceiverBrand,
-    ReceiverDescriptor, ReceiverProtocol, find_receiver, receiver_display_name,
-    speaks_unifying_protocol,
+    ReceiverDescriptor, ReceiverProtocol, find_receiver, receiver_display_name, routes_as_unifying,
 };
 pub use channel::{ChannelPool, ChannelRegistry, SharedChannel};
 pub use device_io::{DeviceIoGate, DeviceIoSignal, IoSuspended, device_io_channel};

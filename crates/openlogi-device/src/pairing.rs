@@ -118,6 +118,8 @@ fn family_for(product_id: u16) -> Option<ReceiverFamily> {
     match crate::find_receiver(crate::LOGITECH_VENDOR_ID, product_id)?.protocol {
         crate::ReceiverProtocol::Bolt => Some(ReceiverFamily::Bolt),
         crate::ReceiverProtocol::Unifying => Some(ReceiverFamily::Unifying),
+        // No pairing registers, and its pairing features are undocumented.
+        crate::ReceiverProtocol::Hidpp20 => None,
     }
 }
 

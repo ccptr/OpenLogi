@@ -17,7 +17,7 @@ use hidpp::{
 pub use openlogi_core::hid::route::{
     DIRECT_DEVICE_INDEX, DeviceRoute, LOGITECH_VENDOR_ID, RECEIVERS, ReceiverBrand,
     ReceiverDescriptor, ReceiverProtocol, find_receiver, is_receiver_pid, receiver_display_name,
-    speaks_unifying_protocol,
+    routes_as_unifying,
 };
 
 use tracing::{debug, warn};
@@ -33,9 +33,10 @@ use crate::write::WriteError;
 /// route it is the device's own channel. Returns `None` when nothing matching
 /// is currently connected.
 ///
-/// Matching a receiver route reads the receiver's unique id, a HID++ 1.0
-/// register read, so it takes the receiver's register phase
-/// ([`lock_receiver_registers`]) like every other register caller. A
+/// Matching a receiver route reads the receiver's unique id. On Bolt and
+/// Unifying that is a HID++ 1.0 register read, so it takes the receiver's
+/// register phase ([`lock_receiver_registers`]) like every other register
+/// caller. A
 /// receiver whose phase another OpenLogi process still holds after
 /// [`RECEIVER_REGISTER_TIMEOUT`] is passed over this time — the caller sees the
 /// same `None` as for a receiver that is not there — rather than read
@@ -82,19 +83,22 @@ pub(crate) async fn open_route_channel(
                 }
             }
             DeviceRoute::Unifying { receiver_uid, .. } => {
-                let Some(Receiver::Unifying(unifying)) = receiver::detect(Arc::clone(&channel))
-                else {
-                    continue;
+                let uid = match receiver::detect(Arc::clone(&channel)) {
+                    Some(Receiver::Unifying(unifying)) => {
+                        let Some(_registers) =
+                            lock_receiver_registers(&node.id, RECEIVER_REGISTER_TIMEOUT).await
+                        else {
+                            debug!(node = %node.id, "receiver register phase held elsewhere — passing the node over");
+                            continue;
+                        };
+                        unifying.get_unique_id().await
+                    }
+                    // A feature call, not a register read: replies are matched
+                    // by software id, so there is no register phase to take.
+                    Some(Receiver::Hidpp20(receiver)) => receiver.get_unique_id().await,
+                    _ => continue,
                 };
-                let Some(_registers) =
-                    lock_receiver_registers(&node.id, RECEIVER_REGISTER_TIMEOUT).await
-                else {
-                    debug!(node = %node.id, "receiver register phase held elsewhere — passing the node over");
-                    continue;
-                };
-                if let Ok(uid) = unifying.get_unique_id().await
-                    && uid.eq_ignore_ascii_case(receiver_uid)
-                {
+                if uid.is_ok_and(|uid| uid.eq_ignore_ascii_case(receiver_uid)) {
                     return Ok(Some(channel));
                 }
             }

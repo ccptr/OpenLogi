@@ -192,7 +192,9 @@ impl SubscriptionState {
                 unifying::decode_notification(&v10::Message::from(raw)),
                 Some(unifying::Event::DeviceConnection(_))
             ),
-            None => false,
+            // No receiver-level connection notification is known for this
+            // family; its device's own feature events still decode below.
+            Some(ReceiverProtocol::Hidpp20) | None => false,
         };
         if receiver_connection {
             return (self.receiver_snapshot_depth.load(Ordering::Acquire) == 0)
